@@ -57,20 +57,6 @@ Install [BRAT](https://github.com/TfTHacker/obsidian42-brat), then use the comma
 
 打开任意笔记进入编辑模式,工具栏出现在编辑区顶部;Tab 切换分类,点击符号即插入;悬停可查看名称与代码;点击标题行折叠,点击 × 隐藏(左侧边栏 ∑ 图标可再次打开)。
 
-## 🆚 Similar plugins / 与同类插件的区别
-
-| Plugin / 插件 | Form / 形态 | 嵌入编辑区 | 常驻工具栏 |
-| --- | --- | --- | --- |
-| **Math Symbol Toolbar (this)** | Embedded top toolbar | ✅ 占据布局空间 | ✅ |
-| LaTeX Panel Helper | Sidebar / pop-out window | ❌ 侧边栏或浮窗 | 部分 |
-| LaTeX Symbol Picker | Sidebar (draw & search) | ❌ 侧边栏 | ❌ |
-| [Obsidian LaTeX Suite](https://github.com/artisticat1/obsidian-latex-suite) | Snippets + palette | ❌ 快捷键呼出 | ❌ |
-| [MathLive](https://github.com/danzilberdan/obsidian-mathlive) | Visual editor modal + OCR | ❌ 弹出窗口 | ❌ |
-| Quick Latex | Snippets | ❌ | ❌ |
-
-If you prefer typing-based workflows, **LaTeX Suite** is excellent. This plugin targets the "I know the symbol when I see it" workflow — one click, no memorized commands — while staying permanently visible without covering anything.
-如果你习惯打字流,**LaTeX Suite** 是极佳选择;本插件面向"看得见、点一下"的场景——无需记忆命令,常驻可见且不遮挡内容。
-
 ## 📌 Changelog / 更新日志
 
 - **v1.2.1** — Removed the native browser `title` tooltip that duplicated the styled Obsidian tooltip. / 移除与样式化提示重复的系统原生注释框。
