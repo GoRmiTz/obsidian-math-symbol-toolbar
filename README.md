@@ -23,6 +23,10 @@
   常用 / 上下标 / 括号 / 分根 / 积限 / 函数 / 运算 / 关系 / 箭头 / 集合 / 逻辑 / 希腊字母 / 其他 / 矩阵。
 - **Smart insertion / 智能插入** — Auto-wraps in `$...$` (or `$$...$$` for block structures like matrices) when the cursor is outside math mode; selected text becomes the numerator/first argument; remaining placeholders render as `□` (`\square`) and the cursor lands on the first one, ready to type.
   光标不在数学环境时自动包 `$...$`(矩阵等块级结构包 `$$...$$`);选中文本自动成为第一个参数,其余占位渲染为 □,光标自动定位到待填处。
+- **Recent tab / 最近使用** — The first tab 「最近」 automatically collects the symbols you click, newest first, no duplicates, up to 18 (older ones drop off and need one more click to return). Persisted across restarts.
+  第一个「最近」Tab 自动按点击时间收集你点过的符号(最新在前、不重复、最多 18 个,超出后最早的移出,需重新点击才会再次出现),重启后保留;设置里可一键清空。
+- **Repeat last insert / 重复插入** — A command `Repeat last symbol` re-inserts the symbol you inserted last, default hotkey `Ctrl/Cmd+Shift+M`; change it any time in Settings → Hotkeys.
+  「重复插入上一个符号」命令把最近一次插入的符号在光标处再插一次,默认快捷键 `Ctrl+Shift+M`,可在 设置 → 快捷键 中搜索命令名自由更换。
 - **Collapsible / 可折叠** — Click the `∑ 数学符号` title to collapse the panel to a single row when you don't need it. The state is remembered.
   点击标题行折叠/展开,不用时只占一行,状态自动记忆。
 - **Follow system light/dark theme / 跟随系统亮暗** — Optionally switches the whole Obsidian theme when your OS switches between light and dark mode.
@@ -36,9 +40,9 @@
 
 **Step 1 · Download / 下载**
 
-Go to the [Releases page](https://github.com/GoRmiTz/obsidian-math-symbol-toolbar/releases) → find the latest version (e.g. `v1.2.1`) → under **Assets**, download **`math-symbol-toolbar-v1.2.1.zip`**.
+Go to the [Releases page](https://github.com/GoRmiTz/obsidian-math-symbol-toolbar/releases) → find the latest version (e.g. `v1.3.0`) → under **Assets**, download **`math-symbol-toolbar-v1.3.0.zip`**.
 
-进入 [Releases 页面](https://github.com/GoRmiTz/obsidian-math-symbol-toolbar/releases) → 找到最新版本(如 `v1.2.1`)→ 在下方 **Assets** 里下载 **`math-symbol-toolbar-v1.2.1.zip`**。
+进入 [Releases 页面](https://github.com/GoRmiTz/obsidian-math-symbol-toolbar/releases) → 找到最新版本(如 `v1.3.0`)→ 在下方 **Assets** 里下载 **`math-symbol-toolbar-v1.3.0.zip`**。
 
 > ⚠️ Do **not** download `Source code (zip)` — it is for developers.
 > ⚠️ 不要下载 `Source code (zip/tar.gz)`,那是给开发者的源码包。
@@ -102,13 +106,16 @@ Install [BRAT](https://github.com/TfTHacker/obsidian42-brat), then use the comma
 
 1. Open any note in editing (source / live preview) mode — the toolbar appears at the top of the pane.
 2. Switch categories with the tabs; click a symbol to insert its LaTeX code at the cursor.
-3. Hover a button to see its name and LaTeX code.
-4. Click the title row to collapse / expand the panel; click `×` to hide the toolbar entirely (ribbon ∑ icon or command palette to bring it back).
+3. The **「最近」(Recent)** tab keeps your most-used symbols — click a symbol once and it stays there for quick reuse.
+4. Press `Ctrl/Cmd+Shift+M` (customizable in Settings → Hotkeys) to **repeat** the symbol you inserted last.
+5. Hover a button to see its name and LaTeX code.
+6. Click the title row to collapse / expand the panel; click `×` to hide the toolbar entirely (ribbon ∑ icon or command palette to bring it back).
 
-打开任意笔记进入编辑模式,工具栏出现在编辑区顶部;Tab 切换分类,点击符号即插入;悬停可查看名称与代码;点击标题行折叠,点击 × 隐藏(左侧边栏 ∑ 图标可再次打开)。
+打开任意笔记进入编辑模式,工具栏出现在编辑区顶部;Tab 切换分类,点击符号即插入;「最近」Tab 自动收集你点过的符号方便复用;`Ctrl+Shift+M` 重复插入上一个符号(快捷键可在 设置 → 快捷键 修改);悬停可查看名称与代码;点击标题行折叠,点击 × 隐藏(左侧边栏 ∑ 图标可再次打开)。
 
 ## 📌 Changelog / 更新日志
 
+- **v1.3.0** — Added a **「最近」(Recent) tab**: automatically collects clicked symbols in click order (newest first, deduplicated, max 18, persisted; clear it in plugin settings) and a **Repeat last symbol** command with a customizable hotkey (`Ctrl/Cmd+Shift+M` by default). / 新增「最近」使用栏(按点击时间自动收集、去重、上限 18、持久化,设置里可清空)与「重复插入上一个符号」命令(默认 Ctrl+Shift+M,快捷键可自定义)。
 - **v1.2.1** — Removed the native browser `title` tooltip that duplicated the styled Obsidian tooltip. / 移除与样式化提示重复的系统原生注释框。
 - **v1.2.0** — Collapsible panel: click the title row to fold the toolbar into a single line; state is persisted. / 标题行点击折叠/展开,收起时只占一行,状态持久化。
 - **v1.1.0** — Rebuilt the floating pop-up as an **embedded** toolbar occupying real layout space (nothing blocked anymore); added optional **follow-system light/dark theme**. / 由悬浮弹窗重构为嵌入式布局,新增跟随系统亮暗模式。

@@ -172,3 +172,11 @@
 .mst-toolbar .mst-btn.mst-block:hover {
   box-shadow: inset 0 0 0 1px var(--interactive-accent);
 }
+
+/* 「最近」栏空状态提示 */
+.mst-toolbar .mst-empty {
+  color: var(--text-faint);
+  font-size: 11.5px;
+  padding: 6px 2px;
+  line-height: 1.5;
+}

@@ -14,6 +14,11 @@
  *     其余 '|' 会被替换为 \square(渲染为 □)作为待填占位,
  *     插入后光标自动选中第一个待填位置。
  *   - 标记 'b' 表示块级结构(矩阵/分支等), 在数学环境外时自动用 $$...$$ 包裹。
+ *
+ * 最近使用栏: 第一个「最近」Tab 自动按点击时间收集点过的符号
+ *   (最新在前、不重复、最多 18 个, 超出后最早的移出; 持久化到 data.json)。
+ * 重复插入: 命令「重复插入上一个符号」把最近一次插入的符号再插一次,
+ *   默认快捷键 Ctrl+Shift+M, 可在 设置 → 快捷键 中修改。
  */
 
 const obsidian = require('obsidian');
@@ -394,11 +399,16 @@ const CATS = [
 
 /* ---------------------------- 插件主体 ---------------------------- */
 
+/* 「最近」栏最多保留的符号数(超出后最早的移出, 需重新点击才会再次出现) */
+const RECENT_LIMIT = 18;
+
 const DEFAULT_SETTINGS = {
   enabled: true,             // 是否显示工具栏
   followSystemTheme: true,   // 跟随系统深/浅色模式
   collapsed: false,          // 折叠面板(只显示标题行)
   lastCategory: 'fav',       // 记忆上次的分类
+  recentSymbols: [],         // 最近使用: 符号元组数组, 最新在前, 最多 RECENT_LIMIT 个
+  lastInserted: null,        // 最近一次成功插入的符号元组(供"重复插入"命令使用)
 };
 
 class MathSymbolToolbarPlugin extends Plugin {
@@ -412,6 +422,13 @@ class MathSymbolToolbarPlugin extends Plugin {
       id: 'toggle-toolbar',
       name: '显示/隐藏 数学符号工具栏',
       callback: () => this.toggleToolbar(),
+    });
+    // 重复插入上一个符号: 快捷键可在 设置 → 快捷键 中搜索本命令名修改
+    this.addCommand({
+      id: 'repeat-last-symbol',
+      name: '重复插入上一个符号',
+      hotkeys: [{ modifiers: ['Mod', 'Shift'], key: 'm' }],
+      callback: () => this.repeatLast(),
     });
     this.addSettingTab(new MathToolbarSettingTab(this.app, this));
 
@@ -431,6 +448,9 @@ class MathSymbolToolbarPlugin extends Plugin {
 
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    // 归一化 + 拷贝: 旧版本 data.json 没有这两个字段; slice 防止共享 DEFAULT_SETTINGS 的数组引用被运行时污染
+    this.settings.recentSymbols = Array.isArray(this.settings.recentSymbols) ? this.settings.recentSymbols.slice() : [];
+    this.settings.lastInserted = Array.isArray(this.settings.lastInserted) ? this.settings.lastInserted.slice() : null;
   }
 
   async saveSettings() {
@@ -547,6 +567,12 @@ class MathSymbolToolbarPlugin extends Plugin {
       if (btn) {
         const catId = btn.dataset.cat;
         const idx = parseInt(btn.dataset.idx, 10);
+        // 「最近」栏的按钮: 直接取持久化的符号元组
+        if (catId === 'recent') {
+          const item = (this.settings.recentSymbols || [])[idx];
+          if (item) this.insertToken(item);
+          return;
+        }
         const cat = CATS.find((c) => c.id === catId);
         if (cat && cat.items[idx]) this.insertToken(cat.items[idx]);
       }
@@ -562,16 +588,39 @@ class MathSymbolToolbarPlugin extends Plugin {
   renderTabs() {
     const tabs = this.tabsEl;
     tabs.empty();
-    for (const cat of CATS) {
-      const t = tabs.createEl('button', { text: cat.name, cls: 'mst-tab' });
-      t.dataset.cat = cat.id;
-      if (cat.id === this.settings.lastCategory) t.addClass('is-active');
-    }
+    const mkTab = (id, name) => {
+      const t = tabs.createEl('button', { text: name, cls: 'mst-tab' });
+      t.dataset.cat = id;
+      if (id === this.settings.lastCategory) t.addClass('is-active');
+    };
+    mkTab('recent', '最近'); // 置顶, 方便重复使用常用符号
+    for (const cat of CATS) mkTab(cat.id, cat.name);
   }
 
   renderGrid() {
     const grid = this.gridEl;
     grid.empty();
+
+    // 「最近」栏: 渲染持久化的最近使用符号
+    if (this.settings.lastCategory === 'recent') {
+      const list = this.settings.recentSymbols || [];
+      if (!list.length) {
+        const empty = grid.createDiv('mst-empty');
+        empty.setText('点击任意符号后, 最常用的会自动收集到这里(最多 18 个)');
+        return;
+      }
+      list.forEach((item, idx) => {
+        const [display, code, name, flag] = item;
+        const btn = grid.createEl('button', { text: display, cls: 'mst-btn' });
+        btn.dataset.cat = 'recent';
+        btn.dataset.idx = String(idx);
+        btn.setAttribute('aria-label', name + '：' + code);
+        if (/^[a-zA-Z]+$/.test(display)) btn.addClass('mst-text');
+        if (flag === 'b') btn.addClass('mst-block');
+      });
+      return;
+    }
+
     const cat = CATS.find((c) => c.id === this.settings.lastCategory) || CATS[0];
     cat.items.forEach((item, idx) => {
       const [display, code, name, flag] = item;
@@ -617,6 +666,7 @@ class MathSymbolToolbarPlugin extends Plugin {
     }
 
     editor.replaceRange(finalText, from, to);
+    this.recordUsage(item); // 成功插入后: 更新最近使用 + 记录"上一个符号"
 
     // 光标定位: 选中第一个 \square 待填处; 没有则移到插入文本末尾
     const sqIdx = finalText.indexOf('\\square');
@@ -628,6 +678,31 @@ class MathSymbolToolbarPlugin extends Plugin {
       editor.setCursor(this.advancePos(from, finalText));
     }
     editor.focus();
+  }
+
+  /** 记录一次成功插入: 最近使用(MRU, 去重, 上限 18) + 重复插入的"上一个符号" */
+  recordUsage(item) {
+    const clean = item.slice();
+    this.settings.lastInserted = clean;
+
+    const list = this.settings.recentSymbols;
+    const existing = list.findIndex((it) => it[1] === clean[1]); // 以 LaTeX 代码去重
+    if (existing >= 0) list.splice(existing, 1); // 已存在则移出, 下面重新插到最前
+    list.unshift(clean);
+    if (list.length > RECENT_LIMIT) list.length = RECENT_LIMIT; // 多余的移出, 需重新点击才会回来
+
+    this.saveSettings(); // 持久化(data.json 很小, 每次点击写一次开销可忽略)
+    // 若当前正看着「最近」栏, 实时刷新排序
+    if (this.settings.lastCategory === 'recent') this.renderGrid();
+  }
+
+  /** 重复插入上一个符号(命令: repeat-last-symbol) */
+  repeatLast() {
+    if (!this.settings.lastInserted) {
+      new Notice('还没有可重复的插入记录, 先点一个符号吧');
+      return;
+    }
+    this.insertToken(this.settings.lastInserted);
   }
 
   /**
@@ -707,6 +782,34 @@ class MathToolbarSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
           if (value) this.plugin.applySystemTheme();
           else this.plugin.restoreTheme();
+        })
+      );
+
+    new Setting(containerEl)
+      .setName('重复插入上一个符号')
+      .setDesc('把最近一次插入的符号在当前光标处再插一次。默认快捷键 Ctrl+Shift+M; 如需更换, 点击右侧按钮进入快捷键设置, 搜索「重复插入上一个符号」。')
+      .addButton((btn) =>
+        btn.setButtonText('打开快捷键设置').onClick(() => {
+          try {
+            this.app.setting.open();
+            this.app.setting.openTabById('hotkeys');
+          } catch (e) {
+            this.app.setting.open();
+          }
+        })
+      );
+
+    const recentCount = (this.plugin.settings.recentSymbols || []).length;
+    new Setting(containerEl)
+      .setName('最近使用')
+      .setDesc('工具栏第一个「最近」Tab 会按点击时间自动收集你点过的符号(最新在前、不重复、最多 18 个, 超出后最早的移出, 需重新点击才会再次出现)。当前已收集 ' + recentCount + ' 个。')
+      .addButton((btn) =>
+        btn.setButtonText('清空最近使用').onClick(async () => {
+          this.plugin.settings.recentSymbols = [];
+          this.plugin.settings.lastInserted = null;
+          await this.plugin.saveSettings();
+          this.plugin.renderGrid();
+          this.display();
         })
       );
   }
