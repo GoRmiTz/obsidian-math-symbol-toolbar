@@ -32,26 +32,22 @@
 
 ## 🚀 Installation / 安装
 
-### Method A · Manual (all platforms) / 手动安装(推荐新手)
+### Method A · Download the zip (recommended) / 下载 zip 包(推荐)
 
-**Step 1 · Download 3 files / 下载三个文件**
+**Step 1 · Download / 下载**
 
-Go to the [Releases page](https://github.com/GoRmiTz/obsidian-math-symbol-toolbar/releases) → find the latest version (e.g. `v1.2.1`) → under **Assets**, download these three files:
+Go to the [Releases page](https://github.com/GoRmiTz/obsidian-math-symbol-toolbar/releases) → find the latest version (e.g. `v1.2.1`) → under **Assets**, download **`math-symbol-toolbar-v1.2.1.zip`**.
 
-进入 [Releases 页面](https://github.com/GoRmiTz/obsidian-math-symbol-toolbar/releases) → 找到最新版本(如 `v1.2.1`)→ 在下方 **Assets** 里下载这三个文件:
-
-- `main.js`
-- `manifest.json`
-- `styles.css`
+进入 [Releases 页面](https://github.com/GoRmiTz/obsidian-math-symbol-toolbar/releases) → 找到最新版本(如 `v1.2.1`)→ 在下方 **Assets** 里下载 **`math-symbol-toolbar-v1.2.1.zip`**。
 
 > ⚠️ Do **not** download `Source code (zip)` — it is for developers.
 > ⚠️ 不要下载 `Source code (zip/tar.gz)`,那是给开发者的源码包。
 
-**Step 2 · Put them into your vault / 放进笔记库**
+**Step 2 · Unzip & move / 解压并移动**
 
-In your vault folder, open (or create) this path and drop the three files in — **keep the file names unchanged**:
+Unzip it — you get a folder `math-symbol-toolbar/` containing the three plugin files. Move the **whole folder** into your vault's plugins directory:
 
-在你的笔记库文件夹里,打开(或新建)以下路径,把三个文件放进去——**文件名保持原样,不要改动**:
+解压后得到 `math-symbol-toolbar/` 文件夹(内含三个插件文件)。把这个**文件夹整体**移入你笔记库的插件目录:
 
 ```text
 <你的笔记库>/.obsidian/plugins/math-symbol-toolbar/
@@ -73,13 +69,13 @@ In your vault folder, open (or create) this path and drop the three files in —
 4. Click the **refresh icon** 🔄 on the installed-plugins list, find **Math Symbol Toolbar**, toggle it **on**.
    在已安装插件列表点击 **刷新图标** 🔄,找到 **Math Symbol Toolbar**,打开开关。
 
-**Step 4 · Done / 完成**
+### Method B · Download 3 files / 手动下载三个文件(备选)
 
-Open any note in editing mode — the toolbar appears at the top of the editor pane. Click the `∑` ribbon icon (left sidebar) to show/hide it, and click the title row to collapse/expand.
+If you prefer not to unzip, download `main.js`, `manifest.json`, `styles.css` individually from the [Releases page](https://github.com/GoRmiTz/obsidian-math-symbol-toolbar/releases) and place them into `<你的笔记库>/.obsidian/plugins/math-symbol-toolbar/` yourself (**keep the file names unchanged**), then enable as in Method A Step 3.
 
-打开任意笔记进入编辑模式,工具栏出现在编辑区顶部。左侧边栏 `∑` 图标可显示/隐藏,点击标题行可折叠/展开。
+如果不想解压,也可以在 [Releases 页面](https://github.com/GoRmiTz/obsidian-math-symbol-toolbar/releases) 分别下载三个文件,自己放进 `<你的笔记库>/.obsidian/plugins/math-symbol-toolbar/`(**文件名保持原样**),然后按方式 A 的第 3 步启用。
 
-### Method B · BRAT
+### Method C · BRAT
 
 ```
 https://github.com/GoRmiTz/obsidian-math-symbol-toolbar
