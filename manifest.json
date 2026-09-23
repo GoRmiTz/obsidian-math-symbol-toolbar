@@ -1,0 +1,9 @@
+{
+  "id": "math-symbol-toolbar",
+  "name": "Math Symbol Toolbar",
+  "version": "1.2.1",
+  "minAppVersion": "0.15.0",
+  "description": "数学符号工具栏：点击按钮即可将对应 LaTeX 数学符号代码插入笔记，按常用分类速查，样式参考 Editing Toolbar。",
+  "author": "Graffito",
+  "isDesktopOnly": false
+}

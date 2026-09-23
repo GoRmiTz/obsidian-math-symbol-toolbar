@@ -1,0 +1,174 @@
+/* ============================================================
+   Math Symbol Toolbar — 嵌入式工具栏
+   插入到 .workspace-leaf-content 的 view-header 与 view-content
+   之间, 作为 flex 子项占据布局空间, 不遮挡笔记内容与其他 UI。
+   全部使用 Obsidian CSS 变量, 自动跟随 Obsidian 明暗主题
+   (开启"跟随系统亮暗"后主题类由插件按系统切换, 变量同样生效)。
+   ============================================================ */
+
+.mst-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 0 0 auto;
+  padding: 4px 8px 6px;
+  background: var(--background-primary);
+  border-bottom: 1px solid var(--background-modifier-border);
+  user-select: none;
+  font-size: 13px;
+}
+
+.mst-toolbar.mst-hidden {
+  display: none;
+}
+
+/* ---------- 标题行(可点击折叠) ---------- */
+
+.mst-toolbar .mst-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 16px;
+}
+
+.mst-toolbar .mst-head-toggle {
+  cursor: pointer;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: var(--radius-s, 5px);
+}
+
+.mst-toolbar .mst-head-toggle:hover .mst-title {
+  color: var(--text-normal);
+}
+
+.mst-toolbar .mst-chevron {
+  color: var(--text-faint);
+  font-size: 10px;
+  width: 12px;
+  text-align: center;
+  line-height: 1;
+  transition: transform 120ms ease;
+}
+
+.mst-toolbar .mst-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-faint);
+  letter-spacing: 0.4px;
+  transition: color 100ms ease;
+}
+
+.mst-toolbar .mst-close {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-s, 5px);
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mst-toolbar .mst-close:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* ---------- 折叠状态: 只保留标题行 ---------- */
+
+.mst-toolbar.is-collapsed .mst-tabs,
+.mst-toolbar.is-collapsed .mst-grid {
+  display: none;
+}
+
+.mst-toolbar.is-collapsed .mst-chevron {
+  transform: rotate(-90deg);
+}
+
+/* ---------- 分类 Tab 行 ---------- */
+
+.mst-toolbar .mst-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+}
+
+.mst-toolbar .mst-tab {
+  padding: 2px 9px;
+  border: none;
+  border-radius: var(--radius-s, 5px);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mst-toolbar .mst-tab:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.mst-toolbar .mst-tab.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+/* ---------- 符号按钮网格 ---------- */
+
+.mst-toolbar .mst-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  max-height: 132px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.mst-toolbar .mst-btn {
+  height: 26px;
+  min-width: 32px;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-s, 5px);
+  background: transparent;
+  color: var(--text-normal);
+  font-size: 15px;
+  font-family: var(--font-text, sans-serif);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mst-toolbar .mst-btn:hover {
+  background: var(--background-modifier-hover);
+}
+
+.mst-toolbar .mst-btn:active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+/* 文字型按钮 (sin / log / matrix 等) 用小字号 */
+.mst-toolbar .mst-btn.mst-text {
+  font-size: 11.5px;
+  letter-spacing: 0.2px;
+  font-weight: 600;
+}
+
+/* 块级结构按钮 (矩阵/分支) 用描边提示 */
+.mst-toolbar .mst-btn.mst-block {
+  box-shadow: inset 0 0 0 1px var(--background-modifier-border);
+}
+
+.mst-toolbar .mst-btn.mst-block:hover {
+  box-shadow: inset 0 0 0 1px var(--interactive-accent);
+}

@@ -1,0 +1,16 @@
+# Obsidian 插件运行时数据(用户设置,含个人配置)
+data.json
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 依赖与构建产物(本项目零构建,防御性排除)
+node_modules/
+dist/
+*.zip
+
+# 临时与日志
+*.log
+*.tmp
