@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * Math Symbol Toolbar — 数学符号工具栏(嵌入式)
+ * Math Symbol Toolbar — 数学工具箱(嵌入式)
  * 点击按钮即可将对应 LaTeX 符号代码插入到 md 文档光标处。
  * 分类与符号参考: https://www.cnblogs.com/izcat/p/14264850.html
  * 布局参考: Editing Toolbar — 工具栏嵌入编辑区顶部文档流,
@@ -15,14 +15,29 @@
  *     插入后光标自动选中第一个待填位置。
  *   - 标记 'b' 表示块级结构(矩阵/分支等), 在数学环境外时自动用 $$...$$ 包裹。
  *
+ * 工具箱架构: 插件核心是一个「工具箱」(TOOLS 注册表),
+ *   数学符号是其中的第一个工具; 以后新增的功能并列注册进 TOOLS,
+ *   多于一个工具时标题下方自动出现工具切换行, 单工具时隐藏不占空间。
+ *
  * 最近使用栏: 第一个「最近」Tab 自动按点击时间收集点过的符号
  *   (最新在前、不重复、最多 18 个, 超出后最早的移出; 持久化到 data.json)。
  * 重复插入: 命令「重复插入上一个符号」把最近一次插入的符号再插一次,
  *   默认快捷键 Ctrl+Shift+M, 可在 设置 → 快捷键 中修改。
+ * 卸下不删除: 内置符号可在设置中取消勾选(卸下), 数据保留, 随时勾回。
+ * 自定义分栏: 用户可在设置中创建分栏并添加自己的符号
+ *   (显示字符 + LaTeX/特殊字符 + 注释), 保存时校验 LaTeX;
+ *   校验不通过的符号按钮标红, 点击只弹 $Error$ 提示, 不插入。
  */
 
 const obsidian = require('obsidian');
 const { Plugin, MarkdownView, Notice, PluginSettingTab, Setting } = obsidian;
+
+/* ---------------------------- 工具箱注册表 ---------------------------- */
+/* 以后新增功能(如单位换算、公式片段库等)在这里并列注册即可,
+ * 多于一个工具时工具栏会自动出现切换行。 */
+const TOOLS = [
+  { id: 'math-symbols', name: '数学符号', icon: '∑' },
+];
 
 /* ---------------------------- 符号分类数据 ---------------------------- */
 
@@ -397,8 +412,6 @@ const CATS = [
   },
 ];
 
-/* ---------------------------- 插件主体 ---------------------------- */
-
 /* 「最近」栏最多保留的符号数(超出后最早的移出, 需重新点击才会再次出现) */
 const RECENT_LIMIT = 18;
 
@@ -409,6 +422,9 @@ const DEFAULT_SETTINGS = {
   lastCategory: 'fav',       // 记忆上次的分类
   recentSymbols: [],         // 最近使用: 符号元组数组, 最新在前, 最多 RECENT_LIMIT 个
   lastInserted: null,        // 最近一次成功插入的符号元组(供"重复插入"命令使用)
+  activeTool: 'math-symbols',// 工具箱当前激活的工具
+  disabledSymbols: [],       // 被卸下(隐藏)的内置符号 LaTeX 代码列表, 卸下不删除
+  customCats: [],            // 自定义分栏: [{ id, name, items: [{ id, display, code, name, flag, valid, error }] }]
 };
 
 class MathSymbolToolbarPlugin extends Plugin {
@@ -417,7 +433,7 @@ class MathSymbolToolbarPlugin extends Plugin {
     this.buildToolbar();
     this.setupSystemTheme();
 
-    this.addRibbonIcon('sigma', '数学符号工具栏 (点击显示/隐藏)', () => this.toggleToolbar());
+    this.addRibbonIcon('sigma', '数学符号工具箱 (点击显示/隐藏)', () => this.toggleToolbar());
     this.addCommand({
       id: 'toggle-toolbar',
       name: '显示/隐藏 数学符号工具栏',
@@ -448,9 +464,34 @@ class MathSymbolToolbarPlugin extends Plugin {
 
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-    // 归一化 + 拷贝: 旧版本 data.json 没有这两个字段; slice 防止共享 DEFAULT_SETTINGS 的数组引用被运行时污染
+    // 归一化 + 拷贝: slice 防止共享 DEFAULT_SETTINGS 的数组引用被运行时污染
     this.settings.recentSymbols = Array.isArray(this.settings.recentSymbols) ? this.settings.recentSymbols.slice() : [];
     this.settings.lastInserted = Array.isArray(this.settings.lastInserted) ? this.settings.lastInserted.slice() : null;
+    this.settings.disabledSymbols = Array.isArray(this.settings.disabledSymbols) ? this.settings.disabledSymbols.slice() : [];
+    // 自定义分栏清洗: 保证结构完整
+    const self = this;
+    this.settings.customCats = (Array.isArray(this.settings.customCats) ? this.settings.customCats : [])
+      .filter((c) => c && c.id && Array.isArray(c.items))
+      .map((c) => ({
+        id: String(c.id),
+        name: String(c.name || '我的分栏'),
+        items: c.items
+          .filter((it) => it && typeof it.code === 'string')
+          .map((it) => ({
+            id: String(it.id || self.makeItemId()),
+            display: String(it.display || '□'),
+            code: String(it.code),
+            name: String(it.name || it.display || ''),
+            flag: it.flag === 'b' ? 'b' : '',
+            valid: it.valid !== false,
+            error: typeof it.error === 'string' ? it.error : null,
+          })),
+      }));
+    // lastCategory 校验: 指向的分类(内置/自定义/最近)不存在时回退 fav
+    const validIds = ['recent'].concat(CATS.map((c) => c.id), this.settings.customCats.map((c) => c.id));
+    if (validIds.indexOf(this.settings.lastCategory) < 0) this.settings.lastCategory = 'fav';
+    // activeTool 校验
+    if (TOOLS.every((t) => t.id !== this.settings.activeTool)) this.settings.activeTool = TOOLS[0].id;
   }
 
   async saveSettings() {
@@ -473,6 +514,156 @@ class MathSymbolToolbarPlugin extends Plugin {
 
   applyCollapsed() {
     if (this.barEl) this.barEl.toggleClass('is-collapsed', !!this.settings.collapsed);
+  }
+
+  /* ---------- 工具箱 ---------- */
+
+  get activeTool() {
+    return TOOLS.find((t) => t.id === this.settings.activeTool) || TOOLS[0];
+  }
+
+  setTool(id) {
+    if (TOOLS.every((t) => t.id !== id)) return;
+    this.settings.activeTool = id;
+    this.saveSettings();
+    this.renderToolTabs();
+    this.renderTabs();
+    this.renderGrid();
+    // 未来其他工具在这里分发到各自的渲染器; 当前只有数学符号一种工具
+  }
+
+  /* ---------- 内置符号: 卸下(不删除) / 勾回 ---------- */
+
+  isCodeDisabled(code) {
+    return this.settings.disabledSymbols.indexOf(code) >= 0;
+  }
+
+  toggleBuiltinDisabled(code) {
+    const list = this.settings.disabledSymbols;
+    const i = list.indexOf(code);
+    if (i >= 0) list.splice(i, 1); else list.push(code);
+    this.saveSettings();
+    this.renderGrid();
+  }
+
+  resetCategoryDisabled(catId) {
+    const cat = CATS.find((c) => c.id === catId);
+    if (!cat) return;
+    const codes = {};
+    cat.items.forEach((it) => { codes[it[1]] = true; });
+    this.settings.disabledSymbols = this.settings.disabledSymbols.filter((c) => !codes[c]);
+    this.saveSettings();
+    this.renderGrid();
+  }
+
+  disabledCount(catId) {
+    const cat = CATS.find((c) => c.id === catId);
+    if (!cat) return 0;
+    return cat.items.filter((it) => this.isCodeDisabled(it[1])).length;
+  }
+
+  /* ---------- 自定义分栏 ---------- */
+
+  makeItemId() {
+    return 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
+  customCat(id) {
+    return this.settings.customCats.find((c) => c.id === id);
+  }
+
+  addCustomCat(name) {
+    const clean = String(name || '').trim() || '我的分栏';
+    const id = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    this.settings.customCats.push({ id: id, name: clean, items: [] });
+    this.saveSettings();
+    this.renderTabs();
+    this.renderGrid();
+    return id;
+  }
+
+  renameCustomCat(id, name) {
+    const cat = this.customCat(id);
+    if (!cat) return;
+    cat.name = String(name || '').trim() || cat.name;
+    this.saveSettings();
+    this.renderTabs();
+  }
+
+  deleteCustomCat(id) {
+    const i = this.settings.customCats.findIndex((c) => c.id === id);
+    if (i >= 0) this.settings.customCats.splice(i, 1);
+    if (this.settings.lastCategory === id) this.settings.lastCategory = 'fav';
+    this.saveSettings();
+    this.renderTabs();
+    this.renderGrid();
+  }
+
+  /**
+   * 新增(idx=-1)或更新(idx>=0)自定义符号, 保存前校验 LaTeX。
+   * 返回保存后的 item(含 valid/error), 分栏不存在返回 null。
+   */
+  async saveCustomItem(catId, idx, data) {
+    const cat = this.customCat(catId);
+    if (!cat) return null;
+    const display = String(data.display || '').trim() || '□';
+    const code = String(data.code || '');
+    const name = String(data.name || '').trim() || display;
+    const flag = data.flag === 'b' ? 'b' : '';
+    const v = await this.validateLatex(code);
+    const item = {
+      id: idx >= 0 && cat.items[idx] ? cat.items[idx].id : this.makeItemId(),
+      display: display, code: code, name: name, flag: flag,
+      valid: v.valid, error: v.error,
+    };
+    if (idx >= 0 && idx < cat.items.length) cat.items[idx] = item; else cat.items.push(item);
+    this.saveSettings();
+    this.renderGrid();
+    return item;
+  }
+
+  deleteCustomItem(catId, idx) {
+    const cat = this.customCat(catId);
+    if (!cat || idx < 0 || idx >= cat.items.length) return;
+    cat.items.splice(idx, 1);
+    this.saveSettings();
+    this.renderGrid();
+  }
+
+  /**
+   * 校验一段插入代码是否可用。
+   * 1. 内容为空 → 无效;
+   * 2. 花括号配对检查(忽略 \{ \} 转义; 对普通文本同样生效, 防止散落花括号破坏数学环境);
+   * 3. 不含反斜杠 → 视为普通文本/特殊字符, 跳过 MathJax;
+   * 4. Obsidian 内置 MathJax 可用时做真实解析(能抓到未知命令等错误)。
+   */
+  async validateLatex(raw) {
+    const code = String(raw == null ? '' : raw);
+    if (!code.trim()) return { valid: false, error: '内容为空' };
+    // 花括号配对(忽略 \{ \})
+    const stripped = code.replace(/\\[{}]/g, '');
+    let depth = 0;
+    for (let i = 0; i < stripped.length; i++) {
+      const ch = stripped[i];
+      if (ch === '{') depth++;
+      else if (ch === '}') depth--;
+      if (depth < 0) return { valid: false, error: '花括号不配对' };
+    }
+    if (depth !== 0) return { valid: false, error: '花括号不配对' };
+    if (code.indexOf('\\') < 0) return { valid: true, error: null }; // 普通字符/特殊字符, 无 LaTeX 命令
+    // MathJax 真实校验(可用时)
+    const mj = (typeof window !== 'undefined' && window.MathJax) || null;
+    if (mj && typeof mj.tex2chtml === 'function') {
+      try {
+        if (mj.startup && mj.startup.promise) { try { await mj.startup.promise; } catch (e) { /* 忽略启动失败, 退回启发式结果 */ } }
+        mj.tex2chtml(code.replace(/\|/g, '\\square '));
+        return { valid: true, error: null };
+      } catch (e) {
+        const msg = e && e.message ? String(e.message) : 'LaTeX 解析失败';
+        return { valid: false, error: msg.slice(0, 120) };
+      }
+    }
+    return { valid: true, error: null };
   }
 
   /* ---------- 嵌入式挂载: 移动到当前活跃 markdown 视图的文档流中 ---------- */
@@ -539,7 +730,7 @@ class MathSymbolToolbarPlugin extends Plugin {
     head.addClass('mst-head-toggle');
     head.setAttribute('aria-label', '点击折叠/展开符号面板');
     head.createSpan({ text: '▾', cls: 'mst-chevron' });
-    head.createSpan({ text: '∑ 数学符号', cls: 'mst-title' });
+    head.createSpan({ text: '∑ 工具箱', cls: 'mst-title' });
     const closeBtn = head.createEl('button', { text: '×', cls: 'mst-close' });
     closeBtn.setAttribute('aria-label', '隐藏工具栏');
     closeBtn.addEventListener('click', (evt) => {
@@ -548,13 +739,20 @@ class MathSymbolToolbarPlugin extends Plugin {
     });
     head.addEventListener('click', () => this.toggleCollapsed());
 
+    // 工具切换行(多于一个工具时显示, 见 renderToolTabs)
+    this.toolsEl = bar.createDiv('mst-tools');
     // 分类 Tab 行
     this.tabsEl = bar.createDiv('mst-tabs');
     // 符号网格
     this.gridEl = bar.createDiv('mst-grid');
 
-    // 事件委托: 点击 tab / 符号按钮
+    // 事件委托: 点击工具 / tab / 符号按钮
     bar.addEventListener('click', (evt) => {
+      const toolBtn = evt.target.closest('.mst-tool');
+      if (toolBtn && toolBtn.dataset.tool) {
+        this.setTool(toolBtn.dataset.tool);
+        return;
+      }
       const tab = evt.target.closest('.mst-tab');
       if (tab && tab.dataset.cat) {
         this.settings.lastCategory = tab.dataset.cat;
@@ -573,16 +771,47 @@ class MathSymbolToolbarPlugin extends Plugin {
           if (item) this.insertToken(item);
           return;
         }
-        const cat = CATS.find((c) => c.id === catId);
-        if (cat && cat.items[idx]) this.insertToken(cat.items[idx]);
+        const builtin = CATS.find((c) => c.id === catId);
+        if (builtin && builtin.items[idx]) {
+          this.insertToken(builtin.items[idx]);
+          return;
+        }
+        // 自定义分栏的按钮
+        const cc = this.customCat(catId);
+        const it = cc && cc.items[idx];
+        if (it) {
+          if (it.valid === false) {
+            // 无效符号: 只提示, 不插入
+            new Notice('$Error$：该符号的 LaTeX 无效(' + (it.error || '解析失败') + '),请在设置 → 工具箱 中修正');
+            return;
+          }
+          this.insertToken([it.display || '□', it.code, it.name || it.display || '□', it.flag || undefined]);
+        }
       }
     });
 
     this.barEl = bar;
+    this.renderToolTabs();
     this.renderTabs();
     this.renderGrid();
     this.applyCollapsed(); // 恢复上次折叠状态
     // 挂载由 syncToolbar 在 layout ready / leaf change 时完成
+  }
+
+  renderToolTabs() {
+    const wrap = this.toolsEl;
+    wrap.empty();
+    // 单工具: 隐藏切换行, 不占空间(工具箱为未来扩展保留)
+    if (TOOLS.length <= 1) {
+      wrap.addClass('mst-hidden');
+      return;
+    }
+    wrap.removeClass('mst-hidden');
+    for (const t of TOOLS) {
+      const b = wrap.createEl('button', { text: t.icon + ' ' + t.name, cls: 'mst-tool' });
+      b.dataset.tool = t.id;
+      if (t.id === this.settings.activeTool) b.addClass('is-active');
+    }
   }
 
   renderTabs() {
@@ -595,11 +824,19 @@ class MathSymbolToolbarPlugin extends Plugin {
     };
     mkTab('recent', '最近'); // 置顶, 方便重复使用常用符号
     for (const cat of CATS) mkTab(cat.id, cat.name);
+    for (const cat of this.settings.customCats) mkTab(cat.id, cat.name);
   }
 
   renderGrid() {
     const grid = this.gridEl;
     grid.empty();
+
+    // 未来其他工具的渲染入口
+    if (this.activeTool.id !== 'math-symbols') {
+      const empty = grid.createDiv('mst-empty');
+      empty.setText('该工具还在开发中');
+      return;
+    }
 
     // 「最近」栏: 渲染持久化的最近使用符号
     if (this.settings.lastCategory === 'recent') {
@@ -621,17 +858,52 @@ class MathSymbolToolbarPlugin extends Plugin {
       return;
     }
 
-    const cat = CATS.find((c) => c.id === this.settings.lastCategory) || CATS[0];
-    cat.items.forEach((item, idx) => {
-      const [display, code, name, flag] = item;
-      const btn = grid.createEl('button', { text: display, cls: 'mst-btn' });
-      btn.dataset.cat = cat.id;
-      btn.dataset.idx = String(idx);
-      btn.setAttribute('aria-label', name + '：' + code);
-      // 注意: 不设置 title 属性, 否则会同时出现系统原生注释框, 与 aria-label 的样式化提示重合
-      if (/^[a-zA-Z]+$/.test(display)) btn.addClass('mst-text');
-      if (flag === 'b') btn.addClass('mst-block');
-    });
+    // 内置分类: 渲染时跳过被卸下(取消勾选)的符号, 不删除数据
+    const builtin = CATS.find((c) => c.id === this.settings.lastCategory);
+    if (builtin) {
+      let shown = 0;
+      builtin.items.forEach((item, idx) => {
+        if (this.isCodeDisabled(item[1])) return; // 卸下的不渲染
+        shown++;
+        const [display, code, name, flag] = item;
+        const btn = grid.createEl('button', { text: display, cls: 'mst-btn' });
+        btn.dataset.cat = builtin.id;
+        btn.dataset.idx = String(idx);
+        btn.setAttribute('aria-label', name + '：' + code);
+        // 注意: 不设置 title 属性, 否则会同时出现系统原生注释框, 与 aria-label 的样式化提示重合
+        if (/^[a-zA-Z]+$/.test(display)) btn.addClass('mst-text');
+        if (flag === 'b') btn.addClass('mst-block');
+      });
+      if (!shown) {
+        const empty = grid.createDiv('mst-empty');
+        empty.setText('本栏符号已全部卸下, 可在 设置 → 工具箱 → 内置符号管理 中勾回');
+      }
+      return;
+    }
+
+    // 自定义分类
+    const custom = this.customCat(this.settings.lastCategory);
+    if (custom) {
+      if (!custom.items.length) {
+        const empty = grid.createDiv('mst-empty');
+        empty.setText('这个分栏还是空的, 去 设置 → 工具箱 添加符号吧');
+        return;
+      }
+      custom.items.forEach((it, idx) => {
+        const btn = grid.createEl('button', { text: it.display || '□', cls: 'mst-btn' });
+        btn.dataset.cat = custom.id;
+        btn.dataset.idx = String(idx);
+        btn.setAttribute('aria-label', (it.name || it.display || '') + '：' + it.code);
+        if (/^[a-zA-Z]+$/.test(it.display || '')) btn.addClass('mst-text');
+        if (it.flag === 'b') btn.addClass('mst-block');
+        if (it.valid === false) btn.addClass('mst-invalid'); // 校验未通过: 标红提示
+      });
+      return;
+    }
+
+    // 兜底: 找不到分类回到第一个内置分类
+    this.settings.lastCategory = CATS[0].id;
+    this.renderGrid();
   }
 
   /* ---------- 插入逻辑 ---------- */
@@ -760,7 +1032,16 @@ class MathToolbarSettingTab extends PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl('h2', { text: '数学符号工具栏 设置' });
+    containerEl.createEl('h2', { text: '数学符号工具箱 设置' });
+
+    this.displayGeneral();
+    this.displayToolbox();
+  }
+
+  /* ---------- 基础设置 ---------- */
+
+  displayGeneral() {
+    const { containerEl } = this;
 
     new Setting(containerEl)
       .setName('启动时显示工具栏')
@@ -812,6 +1093,238 @@ class MathToolbarSettingTab extends PluginSettingTab {
           this.display();
         })
       );
+  }
+
+  /* ---------- 工具箱: 分栏与符号管理 ---------- */
+
+  displayToolbox() {
+    const { containerEl } = this;
+    containerEl.createEl('h3', { text: '工具箱 · 分栏与符号' });
+    containerEl.createEl('p', {
+      text: '内置符号可以「卸下」——取消勾选即从工具栏隐藏, 但不删除数据, 随时勾回; 也可以创建自己的分栏, 把网络搜集来的符号加进去。每个符号 = 显示字符(按钮上显示的图标) + 插入内容(LaTeX, 用 | 表示光标占位符; 也可以直接填特殊字符) + 注释(悬停提示)。保存时会校验 LaTeX, 校验不通过的符号按钮会标红, 点击只弹 $Error$ 提示。',
+      cls: 'setting-item-description'
+    });
+
+    this.displayNewCat();
+    this.displayBuiltinManager();
+    this.displayCustomCats();
+  }
+
+  displayNewCat() {
+    const { containerEl } = this;
+    let value = '';
+    new Setting(containerEl)
+      .setName('新建分栏')
+      .setDesc('例如「物理」「化学」, 创建后会出现在工具栏 Tab 的最后, 点开即可往里添加符号。')
+      .addText((t) => t.setPlaceholder('分栏名称').onChange((v) => { value = v; }))
+      .addButton((b) =>
+        b.setButtonText('创建').setCta().onClick(() => {
+          if (!value.trim()) {
+            new Notice('请先填写分栏名称');
+            return;
+          }
+          this.plugin.addCustomCat(value);
+          new Notice('已创建分栏「' + value.trim() + '」');
+          this.display();
+        })
+      );
+  }
+
+  displayBuiltinManager() {
+    const { containerEl } = this;
+    const wrap = containerEl.createEl('details', { cls: 'mst-manager' });
+    wrap.createEl('summary', { text: '内置符号管理(展开每个分栏, 取消勾选即「卸下」, 不删除, 随时勾回)' });
+    wrap.createEl('p', {
+      text: '卸下的符号立即从工具栏对应分栏中消失, 数据仍保留在插件里; 想恢复时勾选回来, 或点「本栏全部勾回」。',
+      cls: 'setting-item-description'
+    });
+    for (const cat of CATS) {
+      const det = wrap.createEl('details', { cls: 'mst-manager-cat' });
+      const summary = det.createEl('summary', { text: '' });
+      const chips = det.createDiv('mst-chips');
+      const chipRefs = [];
+      cat.items.forEach((item) => {
+        const display = item[0], code = item[1], name = item[2];
+        const chip = chips.createEl('button', { text: display, cls: 'mst-chip' });
+        chip.setAttribute('aria-label', name + '：' + code);
+        chipRefs.push({ chip: chip, code: code });
+        chip.addEventListener('click', () => {
+          this.plugin.toggleBuiltinDisabled(code);
+          this.syncChip(chip, code);
+          this.updateBuiltinSummary(summary, cat);
+        });
+      });
+      chipRefs.forEach((r) => this.syncChip(r.chip, r.code));
+      this.updateBuiltinSummary(summary, cat);
+
+      const resetBtn = det.createEl('button', { text: '本栏全部勾回', cls: 'mst-reset-btn' });
+      resetBtn.addEventListener('click', () => {
+        this.plugin.resetCategoryDisabled(cat.id);
+        chipRefs.forEach((r) => this.syncChip(r.chip, r.code));
+        this.updateBuiltinSummary(summary, cat);
+      });
+    }
+  }
+
+  syncChip(chip, code) {
+    const off = this.plugin.isCodeDisabled(code);
+    chip.toggleClass('is-off', off);
+  }
+
+  updateBuiltinSummary(summary, cat) {
+    const total = cat.items.length;
+    const off = this.plugin.disabledCount(cat.id);
+    summary.setText(cat.name + ' (' + (total - off) + '/' + total + ')' + (off ? ' · ' + off + ' 个已卸下' : ''));
+  }
+
+  displayCustomCats() {
+    const { containerEl } = this;
+    const cats = this.plugin.settings.customCats;
+    if (!cats.length) {
+      containerEl.createEl('p', {
+        text: '还没有自定义分栏, 用上方「新建分栏」创建一个。',
+        cls: 'setting-item-description'
+      });
+      return;
+    }
+    for (const cat of cats) {
+      const det = containerEl.createEl('details', { cls: 'mst-manager' });
+      det.createEl('summary', { text: cat.name + '(自定义 · ' + cat.items.length + ' 个符号)' });
+      this.displayCustomCatEditor(det, cat);
+    }
+  }
+
+  displayCustomCatEditor(det, cat) {
+    // 重命名 / 删除分栏
+    let newName = cat.name;
+    new Setting(det)
+      .setName('分栏名称')
+      .addText((t) => t.setValue(cat.name).onChange((v) => { newName = v; }))
+      .addButton((b) =>
+        b.setButtonText('重命名').onClick(() => {
+          this.plugin.renameCustomCat(cat.id, newName);
+          this.display();
+        })
+      )
+      .addButton((b) => {
+        let armed = false;
+        b.setButtonText('删除分栏');
+        b.onClick(() => {
+          if (!armed) {
+            armed = true;
+            b.setButtonText('确认删除?');
+            setTimeout(() => { armed = false; b.setButtonText('删除分栏'); }, 4000);
+            return;
+          }
+          this.plugin.deleteCustomCat(cat.id);
+          new Notice('已删除分栏「' + cat.name + '」');
+          this.display();
+        });
+      });
+
+    // 符号条目编辑
+    const itemsWrap = det.createDiv('mst-items');
+    this.renderCustomItems(itemsWrap, cat);
+  }
+
+  renderCustomItems(itemsWrap, cat) {
+    itemsWrap.empty();
+    const refreshToolbar = () => {
+      this.plugin.renderTabs();
+      this.plugin.renderGrid();
+    };
+
+    cat.items.forEach((it, idx) => {
+      const row = itemsWrap.createDiv('mst-item-row');
+
+      const fDisplay = row.createEl('input');
+      fDisplay.type = 'text';
+      fDisplay.className = 'mst-f-display';
+      fDisplay.value = it.display || '';
+      fDisplay.placeholder = '显示字符';
+      fDisplay.setAttribute('aria-label', '显示字符(按钮图标)');
+
+      const fCode = row.createEl('textarea');
+      fCode.className = 'mst-f-code';
+      fCode.value = it.code || '';
+      fCode.rows = 2;
+      fCode.placeholder = '插入内容: LaTeX(| 为光标占位符)或特殊字符';
+      fCode.setAttribute('aria-label', '插入内容');
+
+      const fName = row.createEl('input');
+      fName.type = 'text';
+      fName.className = 'mst-f-name';
+      fName.value = it.name || '';
+      fName.placeholder = '注释(悬停提示)';
+      fName.setAttribute('aria-label', '注释');
+
+      const status = row.createSpan({ cls: 'mst-status' });
+      const syncStatus = (item) => {
+        status.removeClass('is-ok');
+        status.removeClass('is-bad');
+        if (item.valid === false) {
+          status.addClass('is-bad');
+          status.setText('✗ ' + (item.error || '无效'));
+        } else {
+          status.addClass('is-ok');
+          status.setText('✓ 可用');
+        }
+      };
+      syncStatus(it);
+
+      const saveBtn = row.createEl('button', { text: '保存', cls: 'mst-row-btn' });
+      saveBtn.addEventListener('click', async () => {
+        const saved = await this.plugin.saveCustomItem(cat.id, idx, {
+          display: fDisplay.value, code: fCode.value, name: fName.value, flag: it.flag,
+        });
+        if (saved) {
+          syncStatus(saved);
+          refreshToolbar();
+        }
+      });
+
+      const delBtn = row.createEl('button', { text: '移除', cls: 'mst-row-btn' });
+      delBtn.addEventListener('click', () => {
+        this.plugin.deleteCustomItem(cat.id, idx);
+        this.renderCustomItems(itemsWrap, cat);
+        refreshToolbar();
+      });
+    });
+
+    // 新增一行
+    const addRow = itemsWrap.createDiv('mst-item-row mst-item-new');
+    const nDisplay = addRow.createEl('input');
+    nDisplay.type = 'text';
+    nDisplay.className = 'mst-f-display';
+    nDisplay.placeholder = '显示字符';
+    nDisplay.setAttribute('aria-label', '显示字符(按钮图标)');
+    const nCode = addRow.createEl('textarea');
+    nCode.className = 'mst-f-code';
+    nCode.rows = 2;
+    nCode.placeholder = '插入内容: LaTeX(| 为光标占位符)或特殊字符';
+    nCode.setAttribute('aria-label', '插入内容');
+    const nName = addRow.createEl('input');
+    nName.type = 'text';
+    nName.className = 'mst-f-name';
+    nName.placeholder = '注释(悬停提示)';
+    nName.setAttribute('aria-label', '注释');
+    const nStatus = addRow.createSpan({ cls: 'mst-status' });
+    const addBtn = addRow.createEl('button', { text: '添加符号', cls: 'mst-row-btn' });
+    addBtn.addEventListener('click', async () => {
+      if (!nCode.value.trim()) {
+        nStatus.removeClass('is-ok');
+        nStatus.addClass('is-bad');
+        nStatus.setText('✗ 请填写插入内容');
+        return;
+      }
+      const saved = await this.plugin.saveCustomItem(cat.id, -1, {
+        display: nDisplay.value, code: nCode.value, name: nName.value, flag: '',
+      });
+      if (saved) {
+        this.renderCustomItems(itemsWrap, cat); // 重建列表(含新行)
+        refreshToolbar();
+      }
+    });
   }
 }
 

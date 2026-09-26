@@ -19,8 +19,14 @@
 
 - **Embedded layout / 嵌入式布局** — The toolbar lives inside the editor pane (between the view header and the note), occupying real layout space instead of floating above your notes. Nothing gets covered.
   工具栏插入在笔记标签页内部,占据布局空间把内容下推——不遮挡任何笔记内容与其他 UI(区别于常见的侧边栏 / 浮窗方案)。
+- **Toolbox core / 工具箱架构** — The plugin core is a toolbox; math symbols is just its first tool. More tools can be registered side by side later (a switcher row appears automatically when there is more than one).
+  插件核心是一个「工具箱」, 数学符号是其中的第一个工具; 以后新增的功能会并列注册, 多于一个工具时自动出现切换行。
 - **298 symbols in 14 categories / 298 个符号 · 14 分类** — Favorites, sub/superscripts & accents, brackets, fractions & roots, sums/integrals/limits, functions, binary operators, relations, arrows, sets, logic, Greek letters, misc symbols & spacing, matrices & environments.
   常用 / 上下标 / 括号 / 分根 / 积限 / 函数 / 运算 / 关系 / 箭头 / 集合 / 逻辑 / 希腊字母 / 其他 / 矩阵。
+- **Custom categories & symbols / 自定义分栏与符号导入** — Create your own tabs in Settings → Toolbox and add symbols collected from the web: a display character (the button icon) + insert content (LaTeX with `|` placeholders, or a plain special character) + a comment (hover tooltip). LaTeX is validated on save; invalid symbols show up struck-through in red, and clicking them only pops an `$Error$` notice instead of inserting broken code.
+  在 设置 → 工具箱 中自建分栏, 添加网上搜集的符号: 显示字符(按钮图标) + 插入内容(LaTeX,`|` 为占位符; 也可直接填特殊字符) + 注释(悬停提示)。保存时校验 LaTeX, 不合格的符号标红划线, 点击只弹 `$Error$` 提示、不会插入错误代码。
+- **Disable without deleting / 卸下不删除** — Too many symbols? Uncheck the ones you don't need in Settings → Toolbox → 内置符号管理. They disappear from the toolbar but the data stays — check them back any time, or use the per-category "restore all" button.
+  觉得符号太多?在 设置 → 工具箱 → 内置符号管理 里取消勾选即可「卸下」: 工具栏立即隐藏但数据保留, 随时勾回, 也支持一键「本栏全部勾回」。
 - **Smart insertion / 智能插入** — Auto-wraps in `$...$` (or `$$...$$` for block structures like matrices) when the cursor is outside math mode; selected text becomes the numerator/first argument; remaining placeholders render as `□` (`\square`) and the cursor lands on the first one, ready to type.
   光标不在数学环境时自动包 `$...$`(矩阵等块级结构包 `$$...$$`);选中文本自动成为第一个参数,其余占位渲染为 □,光标自动定位到待填处。
 - **Recent tab / 最近使用** — The first tab 「最近」 automatically collects the symbols you click, newest first, no duplicates, up to 18 (older ones drop off and need one more click to return). Persisted across restarts.
@@ -40,9 +46,9 @@
 
 **Step 1 · Download / 下载**
 
-Go to the [Releases page](https://github.com/GoRmiTz/obsidian-math-symbol-toolbar/releases) → find the latest version (e.g. `v1.3.0`) → under **Assets**, download **`math-symbol-toolbar-v1.3.0.zip`**.
+Go to the [Releases page](https://github.com/GoRmiTz/obsidian-math-symbol-toolbar/releases) → find the latest version (e.g. `v1.4.0`) → under **Assets**, download **`math-symbol-toolbar-v1.4.0.zip`**.
 
-进入 [Releases 页面](https://github.com/GoRmiTz/obsidian-math-symbol-toolbar/releases) → 找到最新版本(如 `v1.3.0`)→ 在下方 **Assets** 里下载 **`math-symbol-toolbar-v1.3.0.zip`**。
+进入 [Releases 页面](https://github.com/GoRmiTz/obsidian-math-symbol-toolbar/releases) → 找到最新版本(如 `v1.4.0`)→ 在下方 **Assets** 里下载 **`math-symbol-toolbar-v1.4.0.zip`**。
 
 > ⚠️ Do **not** download `Source code (zip)` — it is for developers.
 > ⚠️ 不要下载 `Source code (zip/tar.gz)`,那是给开发者的源码包。
@@ -115,6 +121,7 @@ Install [BRAT](https://github.com/TfTHacker/obsidian42-brat), then use the comma
 
 ## 📌 Changelog / 更新日志
 
+- **v1.4.0** — Toolbox refactor: the plugin core becomes a toolbox with math symbols as its first tool (more tools can register side by side). Added **custom categories & symbol import** (create your own tabs in Settings; display character + LaTeX/special character + comment; LaTeX validated on save — invalid symbols are struck-through in red and clicking them only pops an `$Error$` notice) and **disable-without-delete** (uncheck built-in symbols to hide them; data stays, check back any time). / 工具箱重构: 插件核心变为工具箱, 数学符号是第一个工具(未来功能并列注册)。新增**自定义分栏与符号导入**(设置中自建分栏; 显示字符 + LaTeX/特殊字符 + 注释; 保存时校验 LaTeX, 不合格符号标红划线、点击只弹 `$Error$`)与**卸下不删除**(取消勾选即隐藏, 数据保留, 随时勾回)。
 - **v1.3.0** — Added a **「最近」(Recent) tab**: automatically collects clicked symbols in click order (newest first, deduplicated, max 18, persisted; clear it in plugin settings) and a **Repeat last symbol** command with a customizable hotkey (`Ctrl/Cmd+Shift+M` by default). / 新增「最近」使用栏(按点击时间自动收集、去重、上限 18、持久化,设置里可清空)与「重复插入上一个符号」命令(默认 Ctrl+Shift+M,快捷键可自定义)。
 - **v1.2.1** — Removed the native browser `title` tooltip that duplicated the styled Obsidian tooltip. / 移除与样式化提示重复的系统原生注释框。
 - **v1.2.0** — Collapsible panel: click the title row to fold the toolbar into a single line; state is persisted. / 标题行点击折叠/展开,收起时只占一行,状态持久化。

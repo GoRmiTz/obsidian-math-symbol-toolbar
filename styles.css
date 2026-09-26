@@ -180,3 +180,167 @@
   padding: 6px 2px;
   line-height: 1.5;
 }
+
+/* ---------- 工具切换行(多工具时显示, 单工具隐藏) ---------- */
+
+.mst-toolbar .mst-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+}
+
+.mst-toolbar .mst-tools.mst-hidden {
+  display: none;
+}
+
+.mst-toolbar .mst-tool {
+  padding: 2px 10px;
+  border: none;
+  border-radius: var(--radius-s, 5px);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mst-toolbar .mst-tool:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.mst-toolbar .mst-tool.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+/* ---------- 校验未通过的自定义符号: 标红 ---------- */
+
+.mst-toolbar .mst-btn.mst-invalid {
+  color: var(--text-error);
+  text-decoration: line-through;
+  opacity: 0.85;
+}
+
+.mst-toolbar .mst-btn.mst-invalid:hover {
+  box-shadow: inset 0 0 0 1px var(--text-error);
+}
+
+/* ---------- 设置页: 内置符号勾选管理 ---------- */
+
+.mst-manager > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 4px 0;
+  color: var(--text-normal);
+}
+
+.mst-manager > summary:hover {
+  color: var(--text-accent);
+}
+
+.mst-manager .mst-manager-cat {
+  margin: 4px 0 4px 16px;
+}
+
+.mst-manager .mst-manager-cat > summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.9em;
+  padding: 2px 0;
+}
+
+.mst-manager .mst-manager-cat > summary:hover {
+  color: var(--text-normal);
+}
+
+.mst-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 0;
+}
+
+.mst-chip {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s, 5px);
+  background: transparent;
+  color: var(--text-normal);
+  padding: 2px 8px;
+  font-size: 14px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.mst-chip:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* 卸下状态: 虚线框 + 划线 + 变淡(数据仍保留, 勾回即恢复) */
+.mst-chip.is-off {
+  opacity: 0.45;
+  text-decoration: line-through;
+  border-style: dashed;
+}
+
+.mst-reset-btn {
+  margin: 4px 0 8px;
+}
+
+/* ---------- 设置页: 自定义符号编辑行 ---------- */
+
+.mst-items {
+  margin: 4px 0 8px;
+}
+
+.mst-item-row {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--background-modifier-border);
+}
+
+.mst-item-row:last-child {
+  border-bottom: none;
+}
+
+.mst-item-row .mst-f-display {
+  flex: 0 0 72px;
+}
+
+.mst-item-row .mst-f-code {
+  flex: 2 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85em;
+  resize: vertical;
+}
+
+.mst-item-row .mst-f-name {
+  flex: 1 0 110px;
+}
+
+.mst-item-row .mst-status {
+  flex: 0 0 auto;
+  max-width: 140px;
+  font-size: 11px;
+  line-height: 1.4;
+  padding-top: 6px;
+  word-break: break-all;
+}
+
+.mst-item-row .mst-status.is-ok {
+  color: var(--text-success, var(--text-muted));
+}
+
+.mst-item-row .mst-status.is-bad {
+  color: var(--text-error);
+}
+
+.mst-row-btn {
+  flex: 0 0 auto;
+}
